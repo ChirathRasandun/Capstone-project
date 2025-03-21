@@ -1,0 +1,428 @@
+---
+title: "Untitled"
+author: "chirath"
+date: "2025-01-18"
+output:
+  word_document: default
+  html_document: default
+---
+```{r}
+df<-read.csv("C:/Users/Chirath Rasandun/Downloads/dataset (7).csv")
+head(df)
+```
+
+```{r}
+delete_nulls<-function(df,max_nulls){
+  df[rowSums(is.na(df))<=max_nulls,]
+}
+df1<-delete_nulls(df,((ncol(df)/100)*75)-3)
+```
+
+```{r}
+pasted_column<-paste(df1$Country.Code, df1$Indicator.Name)
+
+df2<-df1[,-(1:4)]
+
+df2<-cbind(pasted_column,df2)
+```
+
+
+```{r}
+df3<-t(df2)
+
+```
+
+
+```{r}
+colnames(df3)<-df3[1,]
+df3<-data.frame(df3)
+```
+
+```{r}
+df4<-data.frame(df3)
+df5<-df4[-1,]
+
+```
+
+```{r}
+df5[]<- lapply(df5, as.numeric)
+
+for(col in names(df5)){
+  col_mean<- mean(df5[[col]], na.rm= TRUE)
+  df5[[col]][is.na(df5[[col]])]<-col_mean
+}
+```
+
+```{r}
+select_columns<-function(df,string){
+  selected_columns<-c()
+  for(part in string){
+    matching_columns<-grep(part, names(df5), value = TRUE)
+    selected_columns<-c(selected_columns,matching_columns)
+  }
+    selected_columns<-unique(selected_columns)
+    return(selected_columns)
+  
+}
+```
+
+```{r}
+string_parts<-c("VNM","THA","LKA","MDY","BGD","IND","KEN","BRA","MEX","PAK","NPL","FJI")
+
+library(dplyr)
+Data<-df5[,select_columns(df5,string_parts)]
+Data<-data.frame(Year=seq(1960,2023),Data)
+Data
+Data1 <- Data %>%filter(Year >= 1990 & Year <= 2023)
+
+
+
+
+```
+
+```{r}
+#install.packages("TSA")
+#install.packages("tidyverse")
+#install.packages("changepoint")
+#install.packages("astsa")
+#install.packages("aTSA")
+
+library(vars)
+library(TSA)
+library(tseries)
+library(forecast)
+library(tidyverse)
+library(changepoint)
+library(lubridate)
+library(ggplot2)
+library(MASS)
+library(astsa)
+library(aTSA)
+library(urca)
+library(forecast)
+library(car)
+
+sl_data<-Data1[,select_columns(Data1,"LKA")]
+sl_data
+head(sl_data)
+sl_data1 <- subset(sl_data,select=c(LKA.Agriculture..forestry..and.fishing..value.added....of.GDP.,LKA.Forest.area....of.land.area.,LKA.CO2.emissions..metric.tons.per.capita.,LKA.Renewable.energy.consumption....of.total.final.energy.consumption.))
+head(sl_data1)
+
+
+sl_data1$LKA.Renewable.energy.consumption....of.total.final.energy.consumption.<- as.numeric(as.character(sl_data1$LKA.Renewable.energy.consumption....of.total.final.energy.consumption.))
+
+sl_data1$LKA.CO2.emissions..metric.tons.per.capita.<- as.numeric(as.character(sl_data1$LKA.CO2.emissions..metric.tons.per.capita.))
+
+sl_data1$LKA.Agriculture..forestry..and.fishing..value.added....of.GDP.<- as.numeric(as.character(sl_data1$LKA.Agriculture..forestry..and.fishing..value.added....of.GDP.))
+
+sl_data1$LKA.Forest.area....of.land.area.<- as.numeric(as.character(sl_data1$LKA.Forest.area....of.land.area.))
+
+missing_counts <- colSums(is.na(sl_data1))
+print(missing_counts)
+
+
+#Time series object
+ts_data1<-ts(sl_data1$LKA.Agriculture..forestry..and.fishing..value.added....of.GDP.,frequency =1,start=c(1990) )
+plot(ts_data1,xlab="Time",ylab="Percentage",main= "Agriculture..forestry..and.fishing..value.added....of.GDP.")
+
+#Check stationary
+adf.test(ts_data1)
+PP.test(ts_data1)
+kpss.test(ts_data1)
+
+ts_data2<-ts(sl_data1$LKA.Forest.area....of.land.area.,frequency =1,start=c(1990))
+plot(ts_data2,xlab="Time",ylab="Percentage",main= "Forest.area....of.land.area.")
+
+
+#Check stationary
+adf.test(ts_data2)
+PP.test(ts_data2)
+kpss.test(ts_data2)
+
+ts_data3<-ts(sl_data1$LKA.CO2.emissions..metric.tons.per.capita.,frequency =1,start=c(1990) )
+plot(ts_data3,xlab="Time",ylab="metric.tons",main= "CO2.emissions..metric.tons.per.capita.")
+
+#Check stationary
+adf.test(ts_data3)
+PP.test(ts_data3)
+kpss.test(ts_data3)
+
+
+ts_data4<-ts(sl_data1$LKA.Renewable.energy.consumption....of.total.final.energy.consumption.,frequency =1,start=c(1990) )
+plot(ts_data4,xlab="Time",ylab="Percentage",main= "Renewable.energy.consumption....of.total.final.energy.consumption.")
+
+#Check stationary
+adf.test(ts_data4)
+PP.test(ts_data4)
+kpss.test(ts_data4)
+
+cor(ts_data2,ts_data4)
+
+# Combine both variables into a single time series object
+ts_data<-ts.intersect(ts_data1,ts_data2,ts_data3,ts_data4)
+
+# Plot both variables together
+plot(ts_data, yax.flip = TRUE, xlab = "Year", main = "Reasearch")
+
+#cross correlation
+ccf(ts_data1,ts_data2, main = "Cross-Correlation")
+ccf(ts_data1,ts_data3, main = "Cross-Correlation")
+ccf(ts_data1,ts_data4, main = "Cross-Correlation")
+
+
+ccf(ts_data2,ts_data3, main = "Cross-Correlation")
+ccf(ts_data2,ts_data4, main = "Cross-Correlation")
+
+ccf(ts_data3,ts_data4, main = "Cross-Correlation")
+
+
+
+cor(ts_data1,ts_data2)
+cor(ts_data1,ts_data3)
+cor(ts_data1,ts_data4)
+cor(ts_data2,ts_data3)
+cor(ts_data2,ts_data4)
+cor(ts_data3,ts_data4)
+
+
+```
+
+```{r}
+# Combine both variables into a single time series object
+ts_data<-ts.intersect(ts_data1,ts_data2,ts_data3,ts_data4)
+ts_data
+nrow(ts_data)
+
+
+
+training_set <- window(ts(ts_data), 1, 27)
+training_set
+testing_test<-window(ts(ts_data), 28, 34)
+testing_test
+
+fit_model <- tslm( ts_data3 ~ ts_data1 + ts_data2 + ts_data4,data=training_set)
+summary(fit_model)
+
+autoplot(training_set[,'ts_data3'], series="Data") +
+  autolayer(fitted(fit_model), series="Fitted") +
+  xlab("Year") + ylab("") +
+  ggtitle("CO2 emissions metric tons per capita") +
+  guides(colour=guide_legend(title=" "))
+
+
+cbind(Data = training_set[,"ts_data3"],
+      Fitted = fitted(fit_model)) %>%
+  as.data.frame() %>%
+  ggplot(aes(x=Data, y=Fitted)) +
+    geom_point() +
+    ylab("Fitted (predicted values)") +
+    xlab("Data (actual values)") +
+    ggtitle("CO2 emissions metric tons per capita") +
+    geom_abline(intercept=0, slope=1)
+
+
+```
+```{r}
+checkresiduals(fit_model)
+
+residuals <- residuals(fit_model)
+
+vif(fit_model)
+
+# Perform the Ljung-Box test on the residuals
+# Testing for autocorrelation up to 10 lags
+Box.test(residuals, lag = 10, type = "Ljung-Box")
+
+#Null Hypothesis (H₀): The residuals are independent (no autocorrelation).
+#Alternative Hypothesis (H₁): The residuals exhibit autocorrelation.
+
+#Scatterplots of residuals versus each predictor.
+
+## A. Normality Check
+# QQ-Plot
+qqnorm(residuals, main = "QQ-Plot of Residuals")
+qqline(residuals, col = "red")
+
+# Histogram of residuals
+hist(residuals, main = "Histogram of Residuals", xlab = "Residuals", col = "lightblue", breaks = 20)
+
+# Shapiro-Wilk Test for normality
+shapiro_test <- shapiro.test(residuals)
+cat("Shapiro-Wilk Test p-value:", shapiro_test$p.value, "\n")
+
+
+## B. Autocorrelation
+# ACF and PACF plots
+par(mfrow = c(1, 2))
+Acf(residuals, main = "ACF of Residuals")
+Pacf(residuals, main = "PACF of Residuals")
+
+# Ljung-Box Test
+ljung_box_test <- Box.test(residuals, lag = 20, type = "Ljung-Box")
+cat("Ljung-Box Test p-value:", ljung_box_test$p.value, "\n")
+
+# Reset plotting area
+par(mfrow = c(1, 1))
+
+forecasted_values <- predict(fit_model, newdata = data.frame(
+  ts_data1 = testing_test[, "ts_data1"],
+  ts_data2 = testing_test[, "ts_data2"],
+  ts_data4 = testing_test[, "ts_data4"]
+))
+
+# 2. Accuracy Metrics
+# Assuming you have actual data and predictions
+actual <- training_set # Replace with your actual test set
+predicted <- fitted(fit_model) # Replace with the model's forecasted values
+
+
+library(tseries)
+library(Metrics)
+## Compute Metrics
+rmse_value <- rmse(actual, predicted)
+mae_value <- mae(actual, predicted)
+mape_value <- mape(actual, predicted)
+
+# Display metrics
+cat("Model Performance Metrics:\n")
+cat("RMSE:", rmse_value, "\n")
+cat("MAE:", mae_value, "\n")
+cat("MAPE:", mape_value * 100, "%\n")
+
+
+
+
+df <- as.data.frame(training_set)
+df[,"Residuals"]  <- as.numeric(residuals(fit_model))
+p1 <- ggplot(df, aes(x=ts_data1, y=Residuals)) +
+  geom_point()
+p2 <- ggplot(df, aes(x=ts_data2, y=Residuals)) +
+  geom_point()
+p3 <- ggplot(df, aes(x=ts_data4, y=Residuals)) +
+  geom_point()
+gridExtra::grid.arrange(p1, p2, p3, nrow=2)
+
+#Scatterplots of residuals versus fitted values.
+cbind(Fitted = fitted(fit_model),
+      Residuals=residuals(fit_model)) %>%
+  as.data.frame() %>%
+  ggplot(aes(x=Fitted, y=Residuals)) + geom_point()
+
+
+
+
+
+
+
+
+
+```
+
+
+
+
+```{r}
+
+
+
+# Generate forecasts using the 'predict()' function for linear models
+forecasted_values <- predict(fit_model, newdata = data.frame(
+  ts_data1 = testing_test[, "ts_data1"],
+  ts_data2 = testing_test[, "ts_data2"],
+  ts_data4 = testing_test[, "ts_data4"]
+), interval = "confidence", level = 0.95)
+
+# Create a data frame for actual vs forecasted values
+test_years <- seq(1990 + nrow(training_set), 1990 + nrow(training_set) + nrow(testing_test) - 1, by = 1)
+test_df <- data.frame(
+  Year = test_years,
+  Actual = as.numeric(testing_test[, "ts_data3"]),
+  Forecast = as.numeric(forecasted_values[, 1]),  # Point forecasts (mean)
+  Lower = as.numeric(forecasted_values[, 2]),    # Lower bound of 95% CI
+  Upper = as.numeric(forecasted_values[, 3])     # Upper bound of 95% CI
+)
+
+
+
+# Plot the actual vs forecasted values with confidence intervals
+library(ggplot2)
+ggplot(test_df, aes(x = Year)) +
+  geom_line(aes(y = Actual, color = "Actual Data"), size = 1) +
+  geom_line(aes(y = Forecast, color = "Forecasted Data"), size = 1, linetype = "dashed") +
+  geom_ribbon(aes(ymin = Lower, ymax = Upper, fill = "95% CI"), alpha = 0.2) +
+  labs(
+    title = "Testing Set vs. Forecasted Test Data",
+    x = "Year",
+    y = "CO2 Emissions (metric tons per capita)",
+    color = "Legend",
+    fill = "Legend"
+  ) +
+  scale_x_continuous(breaks = seq(min(test_years), max(test_years), by = 1)) +
+  theme_minimal() +
+  scale_color_manual(values = c("Actual Data" = "blue", "Forecasted Data" = "red")) +
+  scale_fill_manual(values = c("95% CI" = "grey"))
+
+
+
+
+
+
+
+```
+
+
+```{r}
+
+
+# Generate forecast (example using ts_data3)
+forecasted_values <- predict(ts_data3, h = 10)
+
+# Extract forecasted values and confidence intervals
+forecast_df <- data.frame(
+  Year = seq(2024, 2024 + length(forecasted_values$mean) - 1, by = 1),
+  Forecast = as.numeric(forecasted_values$mean),
+  Lower = as.numeric(forecasted_values$lower[, 2]), # 95% CI lower
+  Upper = as.numeric(forecasted_values$upper[, 2])  # 95% CI upper
+)
+
+# Prepare actual data (align with the year range)
+actual_df <- data.frame(
+  Year = seq(1990, 1990 + length(ts_data3) - 1, by = 1),
+  Actual = as.numeric(ts_data3)
+)
+
+# Combine both actual and forecasted data
+combined_df <- rbind(
+  actual_df,
+  data.frame(Year = forecast_df$Year, Actual = NA) # Align years for forecasted data
+)
+
+# Plot
+ggplot() +
+  geom_line(data = actual_df, aes(x = Year, y = Actual, color = "Actual Data"), size = 1) +
+  geom_line(data = forecast_df, aes(x = Year, y = Forecast, color = "Forecasted Data"), size = 1, linetype = "dashed") +
+  geom_ribbon(data = forecast_df, aes(x = Year, ymin = Lower, ymax = Upper, fill = "95% CI"), alpha = 0.2) +
+  labs(
+    title = " Forecasted CO2 Emissions",
+    x = "Year",
+    y = "CO2 Emissions (metric tons per capita)",
+    color = "Legend",
+    fill = "Legend"
+  ) +
+  scale_x_continuous(breaks = seq(1990, 2030, by = 5)) +
+  theme_minimal()
+
+
+
+
+```
+```{r}
+
+
+
+
+```
+
+
+
+
